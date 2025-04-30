@@ -37,10 +37,6 @@ export default function Component({ service }) {
   const wan = defaultSite.health.find((h) => h.subsystem === "wan");
   const lan = defaultSite.health.find((h) => h.subsystem === "lan");
   const wlan = defaultSite.health.find((h) => h.subsystem === "wlan");
-  [wan, lan, wlan].forEach((s) => {
-    s.up = s.status === "ok"; // eslint-disable-line no-param-reassign
-    s.show = s.status !== "unknown"; // eslint-disable-line no-param-reassign
-  });
 
   const uptime = wan["gw_system-stats"]
     ? `${t("common.number", { value: wan["gw_system-stats"].uptime / 86400, maximumFractionDigits: 1 })} ${t(
@@ -48,7 +44,35 @@ export default function Component({ service }) {
       )}`
     : null;
 
-  if (!(wan.show || lan.show || wlan.show || uptime)) {
+
+  // Provide a default if not set in the config
+  if (!widget.fields) {
+    widget.fields = ["uptime", "wan", "lan_users", "wlan_users", "lan_devices", "wlan_devices", "lan", "wlan"];
+  }
+  // Filter out unavailable information
+  widget.fields = widget.fields.filter((field) => {
+    switch(field) {
+      case "uptime":
+      case "wan":
+        return wan.status !== "unknown";
+      case "lan":
+      case "lan_users":
+      case "lan_devices":
+        return lan.status !== "unknown";
+      case "wlan":
+      case "wlan_users":
+      case "wlan_devices":
+        return wlan.status !== "unknown";
+      default:
+        return false;
+    }
+  });
+  // Limit to a maximum of 4 at a time
+  if (widget.fields.length > 4) {
+    widget.fields = widget.fields.slice(0, 4);
+  }
+
+  if (widget.fields.length < 1){
     return (
       <Container service={service}>
         <Block value={t("unifi.empty_data")} />
@@ -58,16 +82,16 @@ export default function Component({ service }) {
 
   return (
     <Container service={service}>
-      {uptime && <Block label="unifi.uptime" value={uptime} />}
-      {wan.show && <Block label="unifi.wan" value={wan.status === "ok" ? t("unifi.up") : t("unifi.down")} />}
+      <Block label="unifi.uptime" value={uptime} />
+      <Block label="unifi.wan" value={wan.status === "ok" ? t("unifi.up") : t("unifi.down")} />
 
-      {lan.show && <Block label="unifi.lan_users" value={t("common.number", { value: lan.num_user })} />}
-      {lan.show && <Block label="unifi.lan_devices" value={t("common.number", { value: lan.num_adopted })} />}
-      {lan.show && <Block label="unifi.lan" value={lan.up ? t("unifi.up") : t("unifi.down")} />}
+      <Block label="unifi.lan_users" value={t("common.number", { value: lan.num_user })} />
+      <Block label="unifi.lan_devices" value={t("common.number", { value: lan.num_adopted })} />
+      <Block label="unifi.lan" value={lan.up ? t("unifi.up") : t("unifi.down")} />
 
-      {wlan.show && <Block label="unifi.wlan_users" value={t("common.number", { value: wlan.num_user })} />}
-      {wlan.show && <Block label="unifi.wlan_devices" value={t("common.number", { value: wlan.num_adopted })} />}
-      {wlan.show && <Block label="unifi.wlan" value={wlan.up ? t("unifi.up") : t("unifi.down")} />}
+      <Block label="unifi.wlan_users" value={t("common.number", { value: wlan.num_user })} />
+      <Block label="unifi.wlan_devices" value={t("common.number", { value: wlan.num_adopted })} />
+      <Block label="unifi.wlan" value={wlan.up ? t("unifi.up") : t("unifi.down")} />
     </Container>
   );
 }
